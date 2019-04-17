@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 
 import remote_brain
@@ -55,11 +56,11 @@ class RandomBrain(Brain):
 			if self.is_free(x, y):
 				break
 		if i > 1:
-			self.send('DEBUG %s coordinates didn\'t hit an empty field' % i)
+			print('DEBUG %s coordinates didn\'t hit an empty field' % i)
 		self.do_mymove(x, y)
 	
 	def brain_end(self):
-		pass
+		sys.exit(0)
 
 remote_brain.Brain = RandomBrain
 

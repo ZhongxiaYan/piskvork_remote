@@ -11,25 +11,37 @@ class Brain:
 			self.send = lambda msg: print(msg, flush=True)
 		else:
 			sock_recv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			sock_recv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			sock_recv.bind((addr, recv))
 			sock_recv.listen(1)
 			print('Listening to %s %s' % (addr, recv))
 			
-			sock_recv, addr = sock_recv.accept()
+			sock_recv, _ = sock_recv.accept()
+			file_recv = sock_recv.makefile()
 			print('Accepted connection from %s %s' % (addr, recv))
-			self.recv = lambda: sock_recv.recv(4096).decode().strip()
+			
+			def recv_fn():
+				msg = file_recv.readline().strip()
+				print('RECV: %s' % msg, flush=True)
+				return msg
+			self.recv = recv_fn
 
 			sock_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			sock_send.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			sock_send.connect((addr, send))
 			print('Sending to %s %s' % (addr, send))
-			self.send = lambda msg: sock_send.sendall(msg.encode('utf-8'))
+			
+			def send_fn(msg):
+				print('SEND: %s' % msg, flush=True)
+				sock_send.sendall(msg.encode('utf-8'))
+			self.send = send_fn
 
 		# conditional variables
 		self.let_turn_start = threading.Event()
 		self.let_turn_end = threading.Event()
 		self.let_turn_end.set()
 
-		t_worker = threading.Thread(target=self.worker_loop)
+		t_worker = threading.Thread(target=self.worker_loop, daemon=True)
 		t_worker.start()
 
 		self.info_init()
@@ -206,7 +218,6 @@ class Brain:
 		elif cmd == 'end':
 			self.stop()
 			self.brain_end()
-			sys.exit(0)
 		
 		elif cmd == 'board':
 			self.start()
@@ -246,7 +257,7 @@ class Brain:
 @click.command()
 @click.option('--stdin/--no-stdin', default=False)
 @click.option('--addr', default='localhost')
-@click.option('--recv', default=8882, help='Receive port for socket')
-@click.option('--send', default=8883, help='Send port for socket')
+@click.option('--recv', default=8082, help='Receive port for socket')
+@click.option('--send', default=8083, help='Send port for socket')
 def main(stdin, addr, recv, send):
 	Brain(stdin, addr, recv, send)
