@@ -14,10 +14,11 @@ def pipe_out(msg):
 	sys.stdout.flush()
 
 def get_line():
-	return sys.stdin.readline().strip()
+	return sys.stdin.readline()
 
 def listen():
 	sock_recv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_recv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 	sock_recv.bind((ADDR, RECV_PORT))
 	sock_recv.listen(1)
 	# print('Listening to %s %s' % (ADDR, RECV_PORT))
@@ -38,16 +39,19 @@ def main():
 	except pywintypes.error:
 		pass
 
-	t_recv = threading.Thread(target=listen)
+	t_recv = threading.Thread(target=listen, daemon=True)
 	t_recv.start()
 
 	sock_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_send.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 	sock_send.connect((ADDR, SEND_PORT))
 	# print('Sending to %s %s' % (ADDR, SEND_PORT))
 
 	while True:
 		line = get_line()
 		sock_send.sendall(line.encode('utf-8'))
+		if line.lower().startswith('end'):
+			sys.exit(0)
 
 if __name__ == '__main__':
 	main()
