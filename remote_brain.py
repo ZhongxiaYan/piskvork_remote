@@ -231,10 +231,8 @@ class Brain:
 						self.brain_my(x, y)
 					elif who == 2:
 						self.brain_opponents(x, y)
-					elif who == 3:
-						self.brain_block(x, y)
 					else:
-						raise ValueError('Who must be 1, 2, or 3')
+						raise ValueError('Who must be 1 or 2')
 					subcmd = self.recv().lower()
 			except (IndexError, ValueError) as e:
 				print(e)
