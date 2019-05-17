@@ -12,9 +12,10 @@ import mcts
 from mcts import MCTSNode
 import util
 from util import *
-mcts.config = util.config = config = Config(az_dir / 'results_small').load()
-config.device = 'cuda'
-config.mcts_eps = 0
+mcts.config = util.config = config = Config(az_dir / 'results_12x12').load()
+config.device = 'cuda:2'
+# config.mcts_eps = 0
+config.eval_mcts_iterations = 0
 
 model = Model(config).set_state(config.load_max_model_state(min_epoch=-1))
 def evaluator(state):
@@ -31,19 +32,19 @@ class AlphaZero(Brain):
 		self.head = MCTSNode(state, evaluator=evaluator)
 
 	def brain_init(self):
-		self.set_mcts(np.zeros((2, config.board_dim, config.board_dim), dtype=np.float32))
+		start_state = get_start_state(config)
+		self.set_mcts(start_state)
 		self.send('OK')
 
 	def brain_restart(self):
 		self.brain_init()
-	
+
 	def step_mcts(self, x, y):
 		print('Moved %s,%s' % (x, y))
 		move = (y, x)
-		index = move_to_index(move)
 		head = self.head
-		if index in head.next:
-			self.head = head.next[index]
+		if move in head.next:
+			self.head = head.next[move]
 		else:
 			new_state = step_state(head.state, move)
 			self.set_mcts(new_state)
@@ -55,17 +56,27 @@ class AlphaZero(Brain):
 		state[:, y, x] = 0
 		self.set_mcts(state)
 		return 0
-	
+
 	def brain_turn(self):
 		if self.terminate_ai:
 			return
 		head = self.head
-		for _ in tqdm(range(config.eval_mcts_iterations)):
-			head.select()
-		index = head.N.argmax()
-		(y, x) = index_to_move(index)
+		if head.terminal:
+			return
+		if config.eval_mcts_iterations == 0:
+			score = head.p
+		else:
+			for _ in tqdm(range(config.eval_mcts_iterations)):
+				head.select()
+			score = head.N
+		(y, x) = move = np.unravel_index(score.argmax(), score.shape)
+
+		np.set_printoptions(precision=2, linewidth=200)
+		r = lambda x: x.reshape(config.board_dim, config.board_dim)
+		# import q; q.d()
+
 		self.do_mymove(x, y)
-	
+
 	def brain_end(self):
 		sys.exit(0)
 
